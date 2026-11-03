@@ -11,6 +11,10 @@ VALUES
 -- Step 2: confirm what landed.
 SELECT * FROM ESTIA_DBT_DEMO_DEV.BRONZE.INCIDENTS WHERE incident_id = 'I031';
 
--- Step 3: after the failed build, remove the record. In practice the source
--- team corrects it and the pipeline reloads the file.
+-- Step 3: build your branch again. The accepted_values test on silver_incidents
+-- fails and the gold models are skipped. Replace the name and branch with yours.
+CALL ESTIA_DBT_DEMO_DEV.DBT.DEPLOY_BRANCH('<DEV_NAME>', 'feature-falls-and-categories');
+
+-- Step 4: remove the record. In practice the source team corrects it and the
+-- pipeline reloads the file. Then run step 3 again: all tests pass.
 DELETE FROM ESTIA_DBT_DEMO_DEV.BRONZE.INCIDENTS WHERE incident_id = 'I031';

@@ -1,10 +1,10 @@
-# Local development. Each engineer builds into their own schemas in the DEV
-# database, named from DBT_DEV_PREFIX (e.g. RVASHISHT_SILVER, RVASHISHT_GOLD).
-# PROD is built inside Snowflake by the task graph, using dbt_projects_profiles.yml.
+# Optional: run dbt on your own machine against your own DEV schemas.
+# The normal workflow builds branches inside Snowflake (DEPLOY_BRANCH), so this
+# is only needed for local experiments and for the dbt extension in VS Code.
 estia_medallion:
-  target: dev
+  target: personal
   outputs:
-    dev:
+    personal:
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
       user: "{{ env_var('SNOWFLAKE_USER') }}"

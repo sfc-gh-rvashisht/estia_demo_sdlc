@@ -1,6 +1,6 @@
 -- Queries used during the walkthrough. Run each one separately.
 
--- 0. Set your developer prefix (the same value as DBT_DEV_PREFIX), then run
+-- 0. Set your developer name (the name you pass to DEPLOY_BRANCH), then run
 --    these SET statements once per session.
 SET dev_prefix = 'RVASHISHT';
 SET dev_silver_facilities = 'ESTIA_DBT_DEMO_DEV.' || $dev_prefix || '_SILVER.SILVER_FACILITIES';
@@ -14,11 +14,14 @@ SELECT CURRENT_ACCOUNT_NAME(), CURRENT_USER(), CURRENT_ROLE(), CURRENT_WAREHOUSE
 -- 2. Bronze facilities as landed: extra spaces, lowercase states, all text.
 SELECT * FROM ESTIA_DBT_DEMO_DEV.BRONZE.FACILITIES;
 
--- 3. Silver facilities after dbt has cleaned them, in your own schema.
-SELECT * FROM IDENTIFIER($dev_silver_facilities);
+-- 3. Silver facilities after dbt has cleaned them, in shared DEV (built from main).
+SELECT * FROM ESTIA_DBT_DEMO_DEV.SILVER.SILVER_FACILITIES;
 
--- 4. Gold monthly incidents: your DEV build, and PROD.
+-- 4. Gold monthly incidents: your branch, shared DEV and PROD.
 SELECT * FROM IDENTIFIER($dev_gold_monthly)
+ORDER BY incident_month, facility_id;
+
+SELECT * FROM ESTIA_DBT_DEMO_DEV.GOLD.GOLD_FACILITY_MONTHLY_INCIDENTS
 ORDER BY incident_month, facility_id;
 
 SELECT * FROM ESTIA_DBT_DEMO_PROD.GOLD.GOLD_FACILITY_MONTHLY_INCIDENTS
@@ -28,20 +31,24 @@ ORDER BY incident_month, facility_id;
 SELECT 'DEV bronze' AS location, COUNT(*) AS rows_found
 FROM ESTIA_DBT_DEMO_DEV.BRONZE.INCIDENTS WHERE incident_id = 'I031'
 UNION ALL
-SELECT 'DEV silver (yours)', COUNT(*)
+SELECT 'DEV silver (your branch)', COUNT(*)
 FROM IDENTIFIER($dev_silver_incidents) WHERE incident_id = 'I031'
 UNION ALL
 SELECT 'PROD bronze', COUNT(*)
 FROM ESTIA_DBT_DEMO_PROD.BRONZE.INCIDENTS WHERE incident_id = 'I031';
 
--- 6. Total incidents and falls: your DEV build and PROD.
-SELECT 'DEV (yours)' AS environment, SUM(incident_count) AS incidents, SUM(fall_count) AS falls
+-- 6. Total incidents and falls in each environment. Run after the change is
+--    merged and released: until then, shared DEV and PROD have no fall_count.
+SELECT 'DEV (your branch)' AS environment, SUM(incident_count) AS incidents, SUM(fall_count) AS falls
 FROM IDENTIFIER($dev_gold_monthly)
+UNION ALL
+SELECT 'DEV (main)', SUM(incident_count), SUM(fall_count)
+FROM ESTIA_DBT_DEMO_DEV.GOLD.GOLD_FACILITY_MONTHLY_INCIDENTS
 UNION ALL
 SELECT 'PROD', SUM(incident_count), SUM(fall_count)
 FROM ESTIA_DBT_DEMO_PROD.GOLD.GOLD_FACILITY_MONTHLY_INCIDENTS;
 
--- 7. Incidents by category: your DEV build, then PROD after release.
+-- 7. Incidents by category: your branch, then PROD after release.
 SELECT * FROM IDENTIFIER($dev_gold_by_category)
 ORDER BY incident_month, facility_id, incident_type;
 

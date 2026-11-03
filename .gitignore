@@ -16,3 +16,4 @@ dbt_packages/
 .user.yml
 .DS_Store
 .vscode/
+dbt_internal_packages/

@@ -1,9 +1,31 @@
-# Used only when the project runs inside Snowflake (the PROD task graph).
-# Local dbt reads profiles.yml instead. No credentials: the run uses the task
-# owner's role and the task's warehouse.
+# Used when the project runs inside Snowflake. No credentials: a run uses the
+# role and warehouse of whoever runs it, or of the task that runs it.
+#
+#   personal  an engineer's feature branch, in their own DEV schemas
+#             (DBT_DEV_PREFIX is passed in by DEPLOY_BRANCH)
+#   dev       shared DEV, built from main by the DEV task graph
+#   prod      PROD, built from main by the PROD task graph
 estia_medallion:
   target: prod
   outputs:
+    personal:
+      type: snowflake
+      account: 'not needed'
+      user: 'not needed'
+      role: "{{ env_var('DBT_ROLE') }}"
+      warehouse: "{{ env_var('DBT_WAREHOUSE') }}"
+      database: ESTIA_DBT_DEMO_DEV
+      schema: "{{ env_var('DBT_DEV_PREFIX') }}_SILVER"
+      threads: 8
+    dev:
+      type: snowflake
+      account: 'not needed'
+      user: 'not needed'
+      role: "{{ env_var('DBT_ROLE') }}"
+      warehouse: "{{ env_var('DBT_WAREHOUSE') }}"
+      database: ESTIA_DBT_DEMO_DEV
+      schema: SILVER
+      threads: 8
     prod:
       type: snowflake
       account: 'not needed'
