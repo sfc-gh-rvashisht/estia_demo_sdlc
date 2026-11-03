@@ -1,7 +1,8 @@
 -- ===========================================================================
 -- Step 2 of 2: connect the GitHub repository and create the PROD dbt project
 -- from the main branch. Run as SYSADMIN, after setup/02_github_integration.sql.
--- Replace YOUR_GITHUB_USER with your GitHub user or organisation name.
+-- Points at github.com/sfc-gh-rvashisht/estia_demo_sdlc-. Change the GitHub
+-- user and repository name here if you use a different repository.
 -- ===========================================================================
 
 USE ROLE SYSADMIN;
@@ -13,7 +14,7 @@ CREATE SCHEMA ESTIA_DBT_DEMO_PROD.DBT
 -- A Snowflake copy of the repository. FETCH pulls the latest commits.
 CREATE GIT REPOSITORY ESTIA_DBT_DEMO_PROD.DBT.ESTIA_REPO
     API_INTEGRATION = ESTIA_DEMO_GITHUB
-    ORIGIN = 'https://github.com/YOUR_GITHUB_USER/estia-dbt-demo.git';
+    ORIGIN = 'https://github.com/sfc-gh-rvashisht/estia_demo_sdlc-.git';
 
 -- Azure DevOps (Azure Repos) version. Use instead of the statement above, after
 -- the Azure DevOps steps in setup/02_github_integration.sql. The DBT schema

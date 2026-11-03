@@ -175,7 +175,7 @@ In `walkthrough/queries.sql`, set `dev_prefix` in statement 0 to the same value 
 
 ### 1.4 Put the project on GitHub
 
-On GitHub, create a new **public**, empty repository named `estia-dbt-demo`
+On GitHub, create a new **public**, empty repository (for example `estia-dbt-demo`)
 (no README, licence or .gitignore). Then:
 
 ```bash
@@ -183,7 +183,7 @@ git init -b main
 git add .
 git status --short
 git commit -m "Add silver and gold incident reporting"
-git remote add origin https://github.com/<github-user>/estia-dbt-demo.git
+git remote add origin https://github.com/<github-user>/<repository>.git
 git push -u origin main
 ```
 
@@ -192,7 +192,7 @@ excluded by `.gitignore`.
 
 ### 1.5 Connect Snowflake to GitHub and create the PROD project
 
-In both scripts, replace `YOUR_GITHUB_USER` with your GitHub user name.
+In both scripts, set the GitHub user and repository name to your repository.
 
 1. Run `setup/02_github_integration.sql` as **ACCOUNTADMIN**. It creates the API
    integration that lets Snowflake read your GitHub repositories, and grants

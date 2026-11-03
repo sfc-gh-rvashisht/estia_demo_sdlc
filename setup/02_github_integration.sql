@@ -1,14 +1,15 @@
 -- ===========================================================================
 -- Step 1 of 2: allow Snowflake to read your GitHub repositories.
 -- Run as ACCOUNTADMIN (integrations are account-level objects).
--- Replace YOUR_GITHUB_USER with your GitHub user or organisation name.
+-- Points at github.com/sfc-gh-rvashisht/estia_demo_sdlc-. Change the GitHub
+-- user and repository name here if you use a different repository.
 -- ===========================================================================
 
 USE ROLE ACCOUNTADMIN;
 
 CREATE API INTEGRATION ESTIA_DEMO_GITHUB
     API_PROVIDER = git_https_api
-    API_ALLOWED_PREFIXES = ('https://github.com/YOUR_GITHUB_USER')
+    API_ALLOWED_PREFIXES = ('https://github.com/sfc-gh-rvashisht')
     ENABLED = TRUE
     COMMENT = 'Read access to the dbt demo GitHub repository';
 
