@@ -1,0 +1,5 @@
+-- Copy to tests/assert_fall_count_bounds.sql
+-- Fall count must be between zero and the total incident count.
+select *
+from {{ ref('gold_facility_monthly_incidents') }}
+where fall_count is null or fall_count < 0 or fall_count > incident_count

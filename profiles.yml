@@ -1,0 +1,17 @@
+# Local development. Each engineer builds into their own schemas in the DEV
+# database, named from DBT_DEV_PREFIX (e.g. RVASHISHT_SILVER, RVASHISHT_GOLD).
+# PROD is built inside Snowflake by the task graph, using dbt_projects_profiles.yml.
+estia_medallion:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      authenticator: oauth_authorization_code   # Snowflake browser sign-in; no SAML needed
+      client_store_temporary_credential: true   # cache the sign-in between commands
+      database: ESTIA_DBT_DEMO_DEV
+      schema: "{{ env_var('DBT_DEV_PREFIX') }}_SILVER"
+      threads: 4

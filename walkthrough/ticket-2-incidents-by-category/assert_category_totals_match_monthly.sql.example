@@ -1,0 +1,24 @@
+-- Copy to tests/assert_category_totals_match_monthly.sql
+-- Category counts for each facility and month should add up to the total in
+-- gold_facility_monthly_incidents. Returns any mismatches; no rows means pass.
+with by_category as (
+    select facility_id, incident_month, sum(incident_count) as category_total
+    from {{ ref('gold_facility_monthly_incidents_by_category') }}
+    group by facility_id, incident_month
+),
+monthly as (
+    select facility_id, incident_month, incident_count
+    from {{ ref('gold_facility_monthly_incidents') }}
+)
+select
+    coalesce(monthly.facility_id, by_category.facility_id) as facility_id,
+    coalesce(monthly.incident_month, by_category.incident_month) as incident_month,
+    monthly.incident_count,
+    by_category.category_total
+from monthly
+full outer join by_category
+    on monthly.facility_id = by_category.facility_id
+    and monthly.incident_month = by_category.incident_month
+where monthly.incident_count is null
+   or by_category.category_total is null
+   or monthly.incident_count <> by_category.category_total

@@ -1,0 +1,15 @@
+version: 2
+sources:
+  - name: bronze
+    database: "{{ target.database }}"
+    schema: BRONZE
+    description: >
+      Raw data as landed by the ingestion pipeline (Azure Data Factory). dbt reads
+      these tables but never writes to them. All columns arrive as text.
+    tables:
+      - name: facilities
+        description: Facility extract from the care management system.
+      - name: residents
+        description: Resident-to-facility extract.
+      - name: incidents
+        description: Incident extract from the incident management system.

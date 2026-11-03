@@ -1,0 +1,21 @@
+name: estia_medallion
+version: '1.0.0'
+config-version: 2
+profile: estia_medallion
+require-dbt-version: [">=1.11.0", "<1.12.0"]
+model-paths: [models]
+test-paths: [tests]
+macro-paths: [macros]
+clean-targets: [target, dbt_packages, logs]
+# BRONZE is loaded by the ingestion pipeline and defined in models/sources.yml.
+# dbt builds SILVER and GOLD.
+models:
+  estia_medallion:
+    silver:
+      +materialized: table
+      +schema: SILVER
+    gold:
+      +materialized: table
+      +schema: GOLD
+flags:
+  send_anonymous_usage_stats: false

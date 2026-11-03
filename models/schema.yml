@@ -1,0 +1,70 @@
+version: 2
+models:
+  - name: silver_facilities
+    description: One row per facility. Names trimmed, state codes uppercased.
+    columns:
+      - name: facility_id
+        data_tests: [unique, not_null]
+      - name: facility_name
+        data_tests: [not_null]
+      - name: state
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [VIC, NSW, QLD]
+  - name: silver_residents
+    description: One row per resident, with the facility they belong to.
+    columns:
+      - name: resident_id
+        data_tests: [unique, not_null]
+      - name: facility_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('silver_facilities')
+                field: facility_id
+  - name: silver_incidents
+    description: >
+      One row per incident, with the date converted to DATE. Incident categories
+      are kept as received so that tests can flag invalid values from the source.
+    columns:
+      - name: incident_id
+        data_tests: [unique, not_null]
+      - name: resident_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('silver_residents')
+                field: resident_id
+      - name: incident_date
+        data_tests: [not_null]
+      - name: incident_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [Fall, Medication Error, Wound, Other]
+  - name: gold_facility_monthly_incidents
+    description: >
+      Incident counts per facility per month. Only months with at least one
+      incident appear; months with no incidents have no row.
+    columns:
+      - name: facility_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('silver_facilities')
+                field: facility_id
+      - name: facility_name
+        description: Facility display name.
+        data_tests: [not_null]
+      - name: incident_month
+        description: First calendar day of the incident month.
+        data_tests: [not_null]
+      - name: incident_count
+        description: Number of incidents recorded (not the number of residents involved).
+        data_tests: [not_null]

@@ -1,0 +1,20 @@
+-- Copy to tests/assert_expected_monthly_falls.sql
+-- Expected monthly fall counts for the sample data.
+with expected as (
+    select column1::varchar as facility_id, column2::date as incident_month,
+           column3::integer as fall_count
+    from values
+        ('F001', '2026-01-01', 2), ('F002', '2026-01-01', 1), ('F003', '2026-01-01', 0),
+        ('F001', '2026-02-01', 1), ('F002', '2026-02-01', 2), ('F003', '2026-02-01', 1),
+        ('F001', '2026-03-01', 0), ('F002', '2026-03-01', 1), ('F003', '2026-03-01', 2)
+), actual as (
+    select * from {{ ref('gold_facility_monthly_incidents') }}
+)
+select expected.facility_id as expected_facility, actual.facility_id as actual_facility,
+       expected.incident_month as expected_month, actual.incident_month as actual_month
+from expected
+full outer join actual
+    on expected.facility_id = actual.facility_id
+    and expected.incident_month = actual.incident_month
+where expected.facility_id is null or actual.facility_id is null
+   or actual.fall_count is null or expected.fall_count <> actual.fall_count

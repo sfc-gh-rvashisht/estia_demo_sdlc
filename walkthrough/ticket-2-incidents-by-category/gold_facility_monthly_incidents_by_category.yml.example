@@ -1,0 +1,31 @@
+# Copy to models/gold/gold_facility_monthly_incidents_by_category.yml
+version: 2
+models:
+  - name: gold_facility_monthly_incidents_by_category
+    description: >
+      Incident counts per facility, month and incident category. Only
+      combinations with at least one incident appear.
+    columns:
+      - name: facility_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('silver_facilities')
+                field: facility_id
+      - name: facility_name
+        description: Facility display name.
+        data_tests: [not_null]
+      - name: incident_month
+        description: First calendar day of the incident month.
+        data_tests: [not_null]
+      - name: incident_type
+        description: Incident category.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [Fall, Medication Error, Wound, Other]
+      - name: incident_count
+        description: Number of incidents in the category for the facility and month.
+        data_tests: [not_null]
