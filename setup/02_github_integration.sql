@@ -1,5 +1,6 @@
 -- ===========================================================================
--- Step 1 of 2: allow Snowflake to read your GitHub repositories.
+-- Step 1 of 2: allow Snowflake to read your GitHub repositories (for both DEV
+-- and PROD).
 -- Run as ACCOUNTADMIN (integrations are account-level objects).
 -- Points at github.com/sfc-gh-rvashisht/estia_demo_sdlc-. Change the GitHub
 -- user and repository name here if you use a different repository.
@@ -35,10 +36,12 @@ GRANT EXECUTE TASK ON ACCOUNT TO ROLE SYSADMIN;
 --   3. If the Azure DevOps organisation restricts access by IP address, add
 --      Snowflake's egress IP addresses to its allowlist.
 --
--- In Snowflake. The secret is a schema object, so create the DBT schema first
--- as SYSADMIN, then run the rest as ACCOUNTADMIN:
+-- In Snowflake. The secret is a schema object, so create the DBT schemas first
+-- as SYSADMIN, then run the rest as ACCOUNTADMIN. Both the DEV and PROD Git
+-- repository objects use the same secret:
 --
 --   USE ROLE SYSADMIN;
+--   CREATE SCHEMA IF NOT EXISTS ESTIA_DBT_DEMO_DEV.DBT;
 --   CREATE SCHEMA IF NOT EXISTS ESTIA_DBT_DEMO_PROD.DBT;
 --
 --   USE ROLE ACCOUNTADMIN;
