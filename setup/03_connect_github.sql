@@ -71,8 +71,11 @@ BEGIN
 
     ALTER GIT REPOSITORY ESTIA_DBT_DEMO_DEV.DBT.ESTIA_REPO FETCH;
 
+    -- DEFAULT_TARGET is dev because Snowflake compiles the project when it is
+    -- created or redeployed, before a developer name is passed in. The build
+    -- below always uses --target personal with the name.
     EXECUTE IMMEDIATE 'CREATE DBT PROJECT IF NOT EXISTS ' || :project ||
-        ' FROM ''' || :source || ''' DEFAULT_TARGET = ''personal'' DBT_VERSION = ''1.11.11''' ||
+        ' FROM ''' || :source || ''' DEFAULT_TARGET = ''dev'' DBT_VERSION = ''1.11.11''' ||
         ' COMMENT = ''Feature branch deployments for ' || :name || '''';
     EXECUTE IMMEDIATE 'ALTER DBT PROJECT ' || :project || ' DEPLOY FROM ''' || :source || '''';
 
