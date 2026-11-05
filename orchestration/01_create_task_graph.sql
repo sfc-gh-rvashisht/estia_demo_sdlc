@@ -24,6 +24,9 @@
 -- Run as SYSADMIN. COMPUTE_WH runs the tasks. SYSADMIN needs
 -- EXECUTE TASK on the account (granted in setup/02_github_integration.sql).
 -- Tasks are created suspended. Start them with orchestration/02_operate.sql.
+--
+-- Run this file from Snowsight or the VS Code Snowflake extension. The
+-- Snowflake CLI splits the BEGIN ... END task bodies at each semicolon.
 -- ===========================================================================
 
 USE ROLE SYSADMIN;
@@ -38,7 +41,6 @@ CREATE TASK ESTIA_DBT_DEMO_DEV.DBT.DEPLOY
     CONFIG = $${"branch": "main", "dev_name": ""}$$
     COMMENT = 'Deploy main to shared DEV, or a branch to an engineer''s own dbt project'
 AS
-EXECUTE IMMEDIATE $$
 DECLARE
     bad_input EXCEPTION (-20001, 'dev_name must be letters, digits or underscores; branch must be letters, digits, dots, dashes or underscores (no slashes); without a dev_name, branch must be main.');
 BEGIN
@@ -66,7 +68,6 @@ BEGIN
         EXECUTE IMMEDIATE 'ALTER DBT PROJECT ' || :project || ' DEPLOY FROM ''' || :source || '''';
     END IF;
 END;
-$$;
 
 -- Without this, EXECUTE TASK is skipped when a scheduled run is about to start
 -- ("has a scheduled run that will start soon; skipping"). Branch runs and main
@@ -78,7 +79,6 @@ CREATE TASK ESTIA_DBT_DEMO_DEV.DBT.BUILD_SILVER
     COMMENT = 'Build and test silver models in shared DEV or an engineer''s schemas'
     AFTER ESTIA_DBT_DEMO_DEV.DBT.DEPLOY
 AS
-EXECUTE IMMEDIATE $$
 BEGIN
     LET name VARCHAR := UPPER(TRIM(COALESCE(SYSTEM$GET_TASK_GRAPH_CONFIG('dev_name')::VARCHAR, '')));
     IF (:name = '') THEN
@@ -90,14 +90,12 @@ BEGIN
             ' ENV_VARS = (''DBT_DEV_PREFIX'' = ''' || :name || ''')';
     END IF;
 END;
-$$;
 
 CREATE TASK ESTIA_DBT_DEMO_DEV.DBT.BUILD_GOLD
     WAREHOUSE = COMPUTE_WH
     COMMENT = 'Build and test gold models in shared DEV or an engineer''s schemas'
     AFTER ESTIA_DBT_DEMO_DEV.DBT.BUILD_SILVER
 AS
-EXECUTE IMMEDIATE $$
 BEGIN
     LET name VARCHAR := UPPER(TRIM(COALESCE(SYSTEM$GET_TASK_GRAPH_CONFIG('dev_name')::VARCHAR, '')));
     IF (:name = '') THEN
@@ -109,7 +107,6 @@ BEGIN
             ' ENV_VARS = (''DBT_DEV_PREFIX'' = ''' || :name || ''')';
     END IF;
 END;
-$$;
 
 -- ---------------------------------------------------------------------------
 -- PROD: SILVER and GOLD in ESTIA_DBT_DEMO_PROD, from main only
@@ -120,13 +117,11 @@ CREATE TASK ESTIA_DBT_DEMO_PROD.DBT.DEPLOY_FROM_MAIN
     SCHEDULE = '5 MINUTE'
     COMMENT = 'Pull main from GitHub and redeploy the PROD dbt project'
 AS
-EXECUTE IMMEDIATE $$
 BEGIN
     ALTER GIT REPOSITORY ESTIA_DBT_DEMO_PROD.DBT.ESTIA_REPO FETCH;
     ALTER DBT PROJECT ESTIA_DBT_DEMO_PROD.DBT.ESTIA_MEDALLION
         DEPLOY FROM '@ESTIA_DBT_DEMO_PROD.DBT.ESTIA_REPO/branches/main';
 END;
-$$;
 
 CREATE TASK ESTIA_DBT_DEMO_PROD.DBT.BUILD_SILVER
     WAREHOUSE = COMPUTE_WH
