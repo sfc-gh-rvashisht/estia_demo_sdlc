@@ -42,7 +42,7 @@ their own machine.
 
 | Environment | Where models are built | Built from | When |
 |---|---|---|---|
-| Your branch | `ESTIA_DBT_DEMO_DEV.<DEV_NAME>_SILVER` and `<DEV_NAME>_GOLD` | Your feature branch | When you run `DEPLOY_BRANCH` |
+| Your branch | `ESTIA_DBT_DEMO_DEV.<DEV_NAME>_SILVER` and `<DEV_NAME>_GOLD` | Your feature branch | When you run the DEV task graph with your branch and name |
 | Shared DEV | `ESTIA_DBT_DEMO_DEV.SILVER` and `GOLD` | `main` | Every 5 minutes, by a task graph |
 | Production | `ESTIA_DBT_DEMO_PROD.SILVER` and `GOLD` | `main` | Every 5 minutes, by a task graph |
 
@@ -53,29 +53,38 @@ is on `main` against development data.
 ### How a change reaches production
 
 ```
-feature branch ─► git push ─► CALL DEPLOY_BRANCH ─► your DEV schemas ─► pull request ─► merge to main
-                                                                                             │
-          ┌──────────────────────────────────────────────────────────────────────────────────┤
-          ▼                                                                                  ▼
-ESTIA_DBT_DEMO_DEV.DBT                                                     ESTIA_DBT_DEMO_PROD.DBT
-DEPLOY_FROM_MAIN ──► BUILD_SILVER ──► BUILD_GOLD                DEPLOY_FROM_MAIN ──► BUILD_SILVER ──► BUILD_GOLD
+feature branch ─► git push ─► EXECUTE TASK DEV DEPLOY ─► your DEV schemas ─► pull request ─► merge to main
+                              (your branch and name)                                              │
+          ┌───────────────────────────────────────────────────────────────────────────────────────┤
+          ▼                                                                                       ▼
+ESTIA_DBT_DEMO_DEV.DBT  (every 5 minutes, main)                 ESTIA_DBT_DEMO_PROD.DBT  (every 5 minutes, main)
+DEPLOY ──► BUILD_SILVER ──► BUILD_GOLD                          DEPLOY_FROM_MAIN ──► BUILD_SILVER ──► BUILD_GOLD
 ```
 
 The merge is the last manual step. In each environment, if a silver test fails,
 `BUILD_GOLD` doesn't run, so reports keep their last good results.
 
-### What DEPLOY_BRANCH does
+### One DEV task graph for main and for your branch
 
-`CALL ESTIA_DBT_DEMO_DEV.DBT.DEPLOY_BRANCH('<DEV_NAME>', '<branch>')`:
+The DEV task graph takes two settings, `branch` and `dev_name`. On its 5-minute
+schedule it uses its defaults (`main`, no name) and builds shared DEV. To build
+your branch, run the same graph with your own settings:
 
-1. Fetches the latest commits from Git.
-2. Creates or updates your own dbt project object,
-   `ESTIA_DBT_DEMO_DEV.DBT.DBT_<DEV_NAME>`, from your branch.
-3. Runs `dbt build` into `<DEV_NAME>_SILVER` and `<DEV_NAME>_GOLD` and returns
-   the result.
+```sql
+EXECUTE TASK ESTIA_DBT_DEMO_DEV.DBT.DEPLOY
+    USING CONFIG = $${"branch": "<branch>", "dev_name": "<DEV_NAME>"}$$;
+```
 
-An optional third argument passes extra dbt arguments, for example
-`'--select gold_facility_monthly_incidents+'`.
+1. `DEPLOY` fetches the latest commits and deploys your branch as your own dbt
+   project object, `ESTIA_DBT_DEMO_DEV.DBT.DBT_<DEV_NAME>`.
+2. `BUILD_SILVER` and `BUILD_GOLD` run `dbt build --target personal` with your
+   name, so the `generate_schema_name` macro writes to `<DEV_NAME>_SILVER` and
+   `<DEV_NAME>_GOLD`. As in every environment, gold isn't built if a silver test
+   fails.
+
+The run appears in the task's **Run History** in Snowsight and in the
+`TASK_HISTORY` query in `orchestration/02_operate.sql`, which shows the branch
+and name each run was for.
 
 Branch names must not contain `/`. Use names like `feature-falls-and-categories`.
 
@@ -139,8 +148,8 @@ You don't need dbt installed: it runs inside Snowflake.
 2. In the Snowflake extension, sign in to the account.
 3. Open `walkthrough/queries.sql`, set `dev_prefix` under statement 0 to your
    name or initials (for example `JSMITH`), and run the SET statements. Run them
-   again in each new session. Use the same name whenever you call
-   `DEPLOY_BRANCH`.
+   again in each new session. Use the same name as `dev_name` whenever you run
+   the DEV task graph for your branch.
 
 Model files contain `ref()` and `source()`, which only dbt can resolve, so don't
 run them with the extension's Execute button.
@@ -164,8 +173,8 @@ run them with the extension's Execute button.
    - `models/schema.yml` holds the descriptions and tests for each model.
 4. In Snowsight, open **Transformation » dbt Projects** to see the shared DEV and
    production projects, both named `ESTIA_MEDALLION`, and their runs. Open the task
-   `DEPLOY_FROM_MAIN` (`ESTIA_DBT_DEMO_PROD` › `DBT` › Tasks) and select **Graph**
-   to see the three production tasks.
+   `DEPLOY` (`ESTIA_DBT_DEMO_DEV` › `DBT` › Tasks) and select **Graph** to see the
+   three DEV tasks. Production has the same graph, starting at `DEPLOY_FROM_MAIN`.
 
 ### Step 2: Create a branch
 
@@ -244,21 +253,28 @@ git commit -m "Add monthly falls and incidents by category"
 git push -u origin feature-falls-and-categories
 ```
 
-Then, in the Snowflake extension:
+Then, in the Snowflake extension, run the DEV task graph with your branch and
+name (also in `orchestration/02_operate.sql`):
 
 ```sql
-CALL ESTIA_DBT_DEMO_DEV.DBT.DEPLOY_BRANCH('<DEV_NAME>', 'feature-falls-and-categories');
+EXECUTE TASK ESTIA_DBT_DEMO_DEV.DBT.DEPLOY
+    USING CONFIG = $${"branch": "feature-falls-and-categories", "dev_name": "<DEV_NAME>"}$$;
 ```
 
-Snowflake deploys your branch as `ESTIA_DBT_DEMO_DEV.DBT.DBT_<DEV_NAME>` and
-builds it into your own schemas. The run is also listed under
-**Transformation » dbt Projects** › `DBT_<DEV_NAME>`.
+The statement returns straight away; the run takes a minute or two. Follow it in
+the task's **Run History** or **Graph** tab in Snowsight, or with the
+`TASK_HISTORY` query in `orchestration/02_operate.sql`. Snowflake deploys your
+branch as `ESTIA_DBT_DEMO_DEV.DBT.DBT_<DEV_NAME>` and builds it into your own
+schemas. Its dbt runs are listed under **Transformation » dbt Projects** ›
+`DBT_<DEV_NAME>`.
+
+When all three tasks show `SUCCEEDED`:
 
 - Query 4, first statement: your table now has `fall_count`. Shared DEV and
   production don't yet.
 - Query 7, first statement: the new table has 27 rows.
 
-To change something, edit, commit, push and call `DEPLOY_BRANCH` again.
+To change something, edit, commit, push and run the task graph again.
 
 ### Step 7: Bad data arrives
 
@@ -266,16 +282,17 @@ The ingestion pipeline lands an incident with a mistyped category (`FALLL`) in
 development bronze.
 
 1. Run steps 1 and 2 in `walkthrough/ticket-1-falls-count/bad_record.sql`.
-2. Run step 3, which builds your branch again. The test
-   `accepted_values_silver_incidents_incident_type` fails, and dbt skips the gold
-   models, because a test on the silver model they depend on failed.
+2. Run step 3, which builds your branch again, and after a minute step 4.
+   `BUILD_SILVER` shows `FAILED` on the test
+   `accepted_values_silver_incidents_incident_type`, and `BUILD_GOLD` doesn't
+   run. The **Graph** tab in Snowsight shows where it stopped.
 3. Run query 5. The record is in development bronze and in your silver schema,
    because dbt builds each model before testing it. Your gold tables still hold
    their previous results, so reporting isn't affected. Production doesn't have
    the record.
 4. Fix the data, not the test. Normally the source team corrects the record and
-   the pipeline reloads the file. Step 4 of `bad_record.sql` simulates this. Run
-   step 3 again: all tests pass.
+   the pipeline reloads the file. Step 5 of `bad_record.sql` simulates this. Run
+   step 3 again: all three tasks succeed.
 
 dbt doesn't roll back models that were already built when a test fails. It skips
 the models that depend on them.
@@ -294,7 +311,8 @@ manual step.
 
 Within 5 minutes both task graphs fetch `main`, redeploy their dbt project and
 build shared DEV and production. To run them straight away, use `EXECUTE TASK`
-in `orchestration/02_operate.sql`.
+in `orchestration/02_operate.sql`. Check first that no DEV run for `main` is in
+progress: two at once redeploy the same project, and one can fail.
 
 - The `TASK_HISTORY` query in `orchestration/02_operate.sql` shows the tasks succeeded in both environments.
 - In Snowsight, the task's **Run History** and **Transformation » dbt Projects** show the new runs.
@@ -369,7 +387,7 @@ data changes.
 
 ### Azure Repos instead of GitHub
 
-The workflow, `DEPLOY_BRANCH` and the task graphs are the same. Only the Git
+The workflow and the task graphs are the same. Only the Git
 connection changes. Azure Repos are usually private, so Snowflake reads the
 repository with a personal access token stored as a Snowflake secret. The steps
 are in the comments of `setup/02_github_integration.sql` and
@@ -392,9 +410,9 @@ Pipelines would typically add:
 
 | Addition | What it gives you |
 |---|---|
-| A pipeline on each pull request that calls `DEPLOY_BRANCH` (or runs `dbt build` into a CI schema) | Tests must pass before a pull request can be merged, without relying on the engineer to run them |
+| A pipeline on each pull request that builds the branch (as the DEV task graph does) or runs `dbt build` into a CI schema | Tests must pass before a pull request can be merged, without relying on the engineer to run them |
 | Branch policies on `main` | Merges only through reviewed pull requests |
-| A release pipeline that runs `snow dbt deploy` on merge, with an approval gate before production | Deployment controlled and logged by the pipeline. Snowflake no longer reads the repository, so no token is needed, and `DEPLOY_FROM_MAIN` is removed from the task graphs |
+| A release pipeline that runs `snow dbt deploy` on merge, with an approval gate before production | Deployment controlled and logged by the pipeline. Snowflake no longer reads the repository, so no token is needed, and `DEPLOY_FROM_MAIN` (and the DEV `DEPLOY` task) is removed from the task graphs |
 | A service user with key-pair or workload identity authentication | No personal credentials in automation |
 | A task schedule matched to data arrival, for example after the nightly Data Factory load | Builds once per load instead of every 5 minutes |
 
@@ -404,7 +422,7 @@ Pipelines would typically add:
 
 Some engineers prefer to try changes before pushing, or to use the dbt extension
 in VS Code. `profiles.yml` has a `personal` target that writes to the same
-`<DEV_NAME>_SILVER` and `<DEV_NAME>_GOLD` schemas as `DEPLOY_BRANCH`.
+`<DEV_NAME>_SILVER` and `<DEV_NAME>_GOLD` schemas as the DEV task graph.
 
 ```bash
 # macOS: makes the settings visible to VS Code too. Restart VS Code afterwards.
@@ -431,10 +449,10 @@ Properties. The first dbt command opens a Snowflake sign-in page in your browser
 
 | Problem | Fix |
 |---|---|
-| `DEPLOY_BRANCH` says the branch name is invalid | Branch names can contain letters, digits, `.`, `-` and `_`. Rename a branch containing `/`. |
-| `DEPLOY_BRANCH` doesn't pick up your latest change | Check the commit was pushed (`git status` shows "up to date with origin"). |
-| `Set DBT_DEV_PREFIX to your name` | A personal build was run without a developer name. Call `DEPLOY_BRANCH` with your name, or set `DBT_DEV_PREFIX` when running locally. |
-| Queries in `walkthrough/queries.sql` say an object doesn't exist | Set `dev_prefix` and run the SET statements under 0. Your schemas exist after your first `DEPLOY_BRANCH`. |
+| `DEPLOY` fails with `BAD_INPUT` | `dev_name` must be letters, digits or `_`; branch names can contain letters, digits, `.`, `-` and `_`. Rename a branch containing `/`. |
+| Your branch run doesn't pick up your latest change | Check the commit was pushed (`git status` shows "up to date with origin"). |
+| `Set DBT_DEV_PREFIX to your name` | A personal build was run without a developer name. Run the DEV task graph with `dev_name`, or set `DBT_DEV_PREFIX` when running locally. |
+| Queries in `walkthrough/queries.sql` say an object doesn't exist | Set `dev_prefix` and run the SET statements under 0. Your schemas exist after your first branch run. |
 | Query 6 says `FALL_COUNT` is invalid | Shared DEV or production hasn't been built from the merged change yet. Wait for the next run or run `EXECUTE TASK`. |
 | Running locally: sign-in error mentioning a SAML identity provider | The profile uses Snowflake's own sign-in (`oauth_authorization_code`). Check `profiles.yml` hasn't been changed to `externalbrowser`, which needs SSO set up on the account. |
 
@@ -451,7 +469,7 @@ SYSADMIN and COMPUTE_WH; change them if yours differ.
 | 1 | `setup/01_land_bronze.sql` | Creates `ESTIA_DBT_DEMO_DEV` or `ESTIA_DBT_DEMO_PROD` with sample bronze data. Run once for each, changing `demo_db`. |
 | 2 | Push this project to your own Git repository | Snowflake deploys from its branches. |
 | 3 | `setup/02_github_integration.sql` | Runs as ACCOUNTADMIN. Lets Snowflake read the repository, and grants SYSADMIN the integration and `EXECUTE TASK`. Set your repository URL first. |
-| 4 | `setup/03_connect_github.sql` | Runs as SYSADMIN. In each database, creates the `DBT` schema, the Git repository object and the dbt project from `main`. Creates `DEPLOY_BRANCH` in DEV. Set your repository URL first. |
+| 4 | `setup/03_connect_github.sql` | Runs as SYSADMIN. In each database, creates the `DBT` schema, the Git repository object and the dbt project from `main`. Set your repository URL first. |
 | 5 | `orchestration/01_create_task_graph.sql` | Creates the DEV and PROD task graphs. |
 | 6 | `orchestration/02_operate.sql` | Starts both schedules and runs them once. All tasks should succeed. |
 

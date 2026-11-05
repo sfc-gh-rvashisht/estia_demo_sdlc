@@ -2,7 +2,7 @@
 # role and warehouse of whoever runs it, or of the task that runs it.
 #
 #   personal  an engineer's feature branch, in their own DEV schemas
-#             (DBT_DEV_PREFIX is passed in by DEPLOY_BRANCH)
+#             (DBT_DEV_PREFIX is passed in by the DEV task graph)
 #   dev       shared DEV, built from main by the DEV task graph
 #   prod      PROD, built from main by the PROD task graph
 estia_medallion:

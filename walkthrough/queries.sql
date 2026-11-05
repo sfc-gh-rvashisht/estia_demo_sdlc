@@ -1,6 +1,6 @@
 -- Queries used during the walkthrough. Run each one separately.
 
--- 0. Set your developer name (the name you pass to DEPLOY_BRANCH), then run
+-- 0. Set your developer name (the dev_name you use when you run the DEV task graph), then run
 --    these SET statements once per session.
 SET dev_prefix = 'RVASHISHT';
 SET dev_silver_facilities = 'ESTIA_DBT_DEMO_DEV.' || $dev_prefix || '_SILVER.SILVER_FACILITIES';

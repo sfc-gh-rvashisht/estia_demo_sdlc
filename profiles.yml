@@ -1,5 +1,5 @@
 # Optional: run dbt on your own machine against your own DEV schemas.
-# The normal workflow builds branches inside Snowflake (DEPLOY_BRANCH), so this
+# The normal workflow builds branches inside Snowflake (the DEV task graph), so this
 # is only needed for local experiments and for the dbt extension in VS Code.
 estia_medallion:
   target: personal
