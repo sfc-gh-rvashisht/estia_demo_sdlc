@@ -1,0 +1,82 @@
+# Pipeline 1: dbt-ci. Builds and tests a branch before it reaches main.
+#
+#   Push to feature/<name>/...   builds into <NAME>_SILVER and <NAME>_GOLD
+#   Run pipeline (manual)        any branch, with the name you enter
+#   Pull request into main       builds into CI_PR_<id>_SILVER and _GOLD; set as
+#                                build validation in the branch policy on main
+#                                so a failed test blocks the merge
+#
+# Everything happens in ESTIA_DBT_DEMO_DEV, signed in as SVC_ADO_DBT_DEV
+# (service connection snowflake-dev), which can't reach PROD.
+# Shared DEV (SILVER and GOLD) is only built by dbt-release, from main.
+
+trigger:
+  branches:
+    include: [ feature/* ]
+  paths:
+    exclude: [ docs/*, README.md ]
+
+pr:
+  branches:
+    include: [ main ]
+
+parameters:
+  - name: devName
+    displayName: Your name or initials (auto takes it from feature/<name>/...)
+    type: string
+    default: auto
+
+variables:
+  SNOWFLAKE_ACCOUNT: <ACCOUNT_IDENTIFIER>
+  SNOWFLAKE_USER: SVC_ADO_DBT_DEV
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Name
+    displayName: Work out the schema prefix
+    jobs:
+      - job: name
+        steps:
+          - checkout: none
+          - script: |
+              set -euo pipefail
+              if [ "$BUILD_REASON" = "PullRequest" ]; then
+                name="CI_PR_${PR_ID}"
+              elif [ "$DEV_NAME" != "auto" ]; then
+                name="$DEV_NAME"
+              else
+                # refs/heads/feature/jsmith/falls-count -> jsmith
+                name=$(echo "$SOURCE_BRANCH" | sed -n 's#^refs/heads/feature/\([^/]*\)/.*#\1#p')
+              fi
+              name=$(echo "$name" | tr '[:lower:]-' '[:upper:]_')
+              if [[ ! "$name" =~ ^[A-Z][A-Z0-9_]{0,30}$ ]]; then
+                echo "##vso[task.logissue type=error]Couldn't work out a name. Use a branch named feature/<name>/<description>, or run the pipeline and enter your name."
+                exit 1
+              fi
+              echo "Building into ${name}_SILVER and ${name}_GOLD"
+              echo "##vso[task.setvariable variable=devName;isOutput=true]$name"
+            name: prefix
+            displayName: Work out the schema prefix
+            env:
+              BUILD_REASON: $(Build.Reason)
+              PR_ID: $(System.PullRequest.PullRequestId)
+              SOURCE_BRANCH: $(Build.SourceBranch)
+              DEV_NAME: ${{ parameters.devName }}
+
+  - stage: Build
+    displayName: Build and test in DEV
+    dependsOn: Name
+    variables:
+      devName: $[ stageDependencies.Name.name.outputs['prefix.devName'] ]
+    jobs:
+      - job: build
+        steps:
+          - template: templates/dbt-steps.yml
+            parameters:
+              serviceConnection: snowflake-dev
+              database: ESTIA_DBT_DEMO_DEV
+              project: DBT_$(devName)
+              target: personal
+              devName: $(devName)

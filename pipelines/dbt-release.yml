@@ -1,0 +1,64 @@
+# Pipeline 2: dbt-release. Releases main to shared DEV, then to PROD.
+#
+#   Merge to main ─► DEV stage ─► approval on estia-prod ─► PROD stage
+#
+# Both stages deploy and build the same commit. PROD only runs if DEV
+# succeeded and an approver has approved it.
+#
+#   DEV   service connection snowflake-dev   -> SVC_ADO_DBT_DEV
+#   PROD  service connection snowflake-prod  -> SVC_ADO_DBT_PROD
+#         (restrict snowflake-prod to main with a Branch control check)
+
+trigger:
+  branches:
+    include: [ main ]
+  paths:
+    exclude: [ docs/*, README.md ]
+
+pr: none
+
+variables:
+  SNOWFLAKE_ACCOUNT: <ACCOUNT_IDENTIFIER>
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: DEV
+    displayName: Release to shared DEV
+    variables:
+      SNOWFLAKE_USER: SVC_ADO_DBT_DEV
+    jobs:
+      - deployment: dev
+        environment: estia-dev
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - template: templates/dbt-steps.yml
+                  parameters:
+                    serviceConnection: snowflake-dev
+                    database: ESTIA_DBT_DEMO_DEV
+                    project: ESTIA_MEDALLION
+                    target: dev
+
+  - stage: PROD
+    displayName: Release to PROD
+    dependsOn: DEV
+    variables:
+      SNOWFLAKE_USER: SVC_ADO_DBT_PROD
+    jobs:
+      - deployment: prod
+        environment: estia-prod        # add required approvers to this environment
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - template: templates/dbt-steps.yml
+                  parameters:
+                    serviceConnection: snowflake-prod
+                    database: ESTIA_DBT_DEMO_PROD
+                    project: ESTIA_MEDALLION
+                    target: prod

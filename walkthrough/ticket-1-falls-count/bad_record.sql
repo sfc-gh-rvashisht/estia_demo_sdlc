@@ -11,20 +11,10 @@ VALUES
 -- Step 2: confirm what landed.
 SELECT * FROM ESTIA_DBT_DEMO_DEV.BRONZE.INCIDENTS WHERE incident_id = 'I031';
 
--- Step 3: build your branch again. Replace the branch and name with yours.
-EXECUTE TASK ESTIA_DBT_DEMO_DEV.DBT.DEPLOY
-    USING CONFIG = $${"branch": "feature-falls-and-categories", "dev_name": "RVASHISHT"}$$;
+-- Step 3: push a commit to your branch, or in Azure DevOps run dbt-ci for
+-- your branch (Run pipeline). The accepted_values test on silver_incidents
+-- fails, the run fails, and the gold models are skipped.
 
--- Step 4: after about a minute, check the run. BUILD_SILVER shows FAILED (the
--- accepted_values test on silver_incidents) and BUILD_GOLD doesn't run.
-SELECT name, state, scheduled_time, error_message
-FROM TABLE(ESTIA_DBT_DEMO_DEV.INFORMATION_SCHEMA.TASK_HISTORY(
-    SCHEDULED_TIME_RANGE_START => DATEADD('minute', -10, CURRENT_TIMESTAMP()),
-    SCHEDULED_TIME_RANGE_END => CURRENT_TIMESTAMP(),
-    RESULT_LIMIT => 10000))
-WHERE database_name = 'ESTIA_DBT_DEMO_DEV' AND schema_name = 'DBT'
-ORDER BY scheduled_time DESC, name;
-
--- Step 5: remove the record. In practice the source team corrects it and the
--- pipeline reloads the file. Then run step 3 again: all tasks succeed.
+-- Step 4: remove the record. In practice the source team corrects it and the
+-- pipeline reloads the file. Then run dbt-ci again: all tests pass.
 DELETE FROM ESTIA_DBT_DEMO_DEV.BRONZE.INCIDENTS WHERE incident_id = 'I031';

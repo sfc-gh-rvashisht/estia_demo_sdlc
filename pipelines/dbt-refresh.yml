@@ -1,0 +1,58 @@
+# Pipeline 3: dbt-refresh. Rebuilds DEV and PROD from new bronze data,
+# using the version dbt-release last deployed. Nothing is redeployed.
+#
+# Runs on a schedule (match it to when Azure Data Factory finishes loading),
+# or manually with Run pipeline. Data Factory can also start it after a load.
+#
+# There is no approval here: the code was already approved when it was
+# released. A failed test fails the run and leaves gold as it was.
+
+trigger: none
+pr: none
+
+schedules:
+  - cron: '0 19 * * *'          # 19:00 UTC, 05:00 or 06:00 in Melbourne. Adjust to the load.
+    displayName: Daily after the bronze load
+    branches:
+      include: [ main ]
+    always: true                # run even if main hasn't changed
+
+variables:
+  SNOWFLAKE_ACCOUNT: <ACCOUNT_IDENTIFIER>
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: DEV
+    displayName: Refresh shared DEV
+    variables:
+      SNOWFLAKE_USER: SVC_ADO_DBT_DEV
+    jobs:
+      - job: dev
+        steps:
+          - checkout: none
+          - template: templates/dbt-steps.yml
+            parameters:
+              serviceConnection: snowflake-dev
+              database: ESTIA_DBT_DEMO_DEV
+              project: ESTIA_MEDALLION
+              target: dev
+              deploy: false
+
+  - stage: PROD
+    displayName: Refresh PROD
+    dependsOn: []                # independent of DEV
+    variables:
+      SNOWFLAKE_USER: SVC_ADO_DBT_PROD
+    jobs:
+      - job: prod
+        steps:
+          - checkout: none
+          - template: templates/dbt-steps.yml
+            parameters:
+              serviceConnection: snowflake-prod
+              database: ESTIA_DBT_DEMO_PROD
+              project: ESTIA_MEDALLION
+              target: prod
+              deploy: false

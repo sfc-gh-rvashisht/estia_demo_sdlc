@@ -1,0 +1,65 @@
+# Shared steps: sign in to Snowflake, then deploy and/or build a dbt project.
+# Used by dbt-ci.yml, dbt-release.yml and dbt-refresh.yml.
+
+parameters:
+  - name: serviceConnection   # snowflake-dev or snowflake-prod
+    type: string
+  - name: database            # ESTIA_DBT_DEMO_DEV or ESTIA_DBT_DEMO_PROD
+    type: string
+  - name: project             # dbt project object, e.g. ESTIA_MEDALLION or DBT_JSMITH
+    type: string
+  - name: target              # personal, dev or prod
+    type: string
+  - name: devName             # personal target only: schema prefix, e.g. JSMITH
+    type: string
+    default: ''
+  - name: deploy              # false: build what is already deployed (scheduled refresh)
+    type: boolean
+    default: true
+
+steps:
+  - task: ConfigureSnowflakeCLI@1
+    inputs:
+      cliVersion: 'latest'
+      useWorkloadIdentity: true
+      connectedServiceName: '${{ parameters.serviceConnection }}'
+    displayName: Configure Snowflake CLI
+
+  - ${{ if eq(parameters.deploy, true) }}:
+    # Uploads the checked-out files as the dbt project object's new version.
+    # It compiles with the dev target: the personal target needs DBT_DEV_PREFIX,
+    # which is only passed in when the project runs.
+    - script: |
+        set -euo pipefail
+        default_target="${{ parameters.target }}"
+        [ "$default_target" = "personal" ] && default_target=dev
+        snow dbt deploy "${{ parameters.project }}" -x \
+          --source . \
+          --database "${{ parameters.database }}" --schema DBT \
+          --default-target "$default_target" \
+          --dbt-version 1.11.11 \
+          --git-url "$(Build.Repository.Uri)" \
+          --git-commit "$(Build.SourceVersion)" \
+          --git-branch "$(Build.SourceBranch)"
+      displayName: Deploy ${{ parameters.project }} to ${{ parameters.database }}
+      env:
+        SNOWFLAKE_TOKEN: $(SNOWFLAKE_TOKEN)
+
+  # dbt build: each model is built and tested in dependency order. A failed
+  # test fails this step and skips the models that depend on it.
+  # snow options go before the project name; everything after it goes to dbt.
+  - script: |
+      set -euo pipefail
+      if [ "${{ parameters.target }}" = "personal" ]; then
+        snow dbt execute -x \
+          --database "${{ parameters.database }}" --schema DBT \
+          --env-vars "{\"DBT_DEV_PREFIX\": \"${{ parameters.devName }}\"}" \
+          "${{ parameters.project }}" build --target personal
+      else
+        snow dbt execute -x \
+          --database "${{ parameters.database }}" --schema DBT \
+          "${{ parameters.project }}" build --target "${{ parameters.target }}"
+      fi
+    displayName: dbt build (${{ parameters.target }})
+    env:
+      SNOWFLAKE_TOKEN: $(SNOWFLAKE_TOKEN)

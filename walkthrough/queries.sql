@@ -1,8 +1,8 @@
 -- Queries used during the walkthrough. Run each one separately.
 
--- 0. Set your developer name (the dev_name you use when you run the DEV task graph), then run
---    these SET statements once per session.
-SET dev_prefix = 'RVASHISHT';
+-- 0. Set the name dbt-ci builds your branch into (from feature/<name>/..., in
+--    capitals, e.g. JSMITH), then run these SET statements once per session.
+SET dev_prefix = '<DEV_NAME>';
 SET dev_silver_facilities = 'ESTIA_DBT_DEMO_DEV.' || $dev_prefix || '_SILVER.SILVER_FACILITIES';
 SET dev_silver_incidents  = 'ESTIA_DBT_DEMO_DEV.' || $dev_prefix || '_SILVER.SILVER_INCIDENTS';
 SET dev_gold_monthly      = 'ESTIA_DBT_DEMO_DEV.' || $dev_prefix || '_GOLD.GOLD_FACILITY_MONTHLY_INCIDENTS';

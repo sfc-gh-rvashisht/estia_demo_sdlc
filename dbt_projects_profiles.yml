@@ -1,10 +1,10 @@
 # Used when the project runs inside Snowflake. No credentials: a run uses the
-# role and warehouse of whoever runs it, or of the task that runs it.
+# role and warehouse of the pipeline's service user.
 #
-#   personal  an engineer's feature branch, in their own DEV schemas
-#             (DBT_DEV_PREFIX is passed in by the DEV task graph)
-#   dev       shared DEV, built from main by the DEV task graph
-#   prod      PROD, built from main by the PROD task graph
+#   personal  a branch, in its own DEV schemas (<NAME>_SILVER/_GOLD).
+#             dbt-ci passes the name in as DBT_DEV_PREFIX.
+#   dev       shared DEV, built from main by dbt-release and dbt-refresh
+#   prod      PROD, built from main by dbt-release and dbt-refresh
 estia_medallion:
   target: prod
   outputs:
