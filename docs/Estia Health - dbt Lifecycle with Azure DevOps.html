@@ -174,6 +174,8 @@ stages:
 (<code>always: true</code>), or Run pipeline. Its DEV and PROD stages run <code>snow dbt execute -x ... ESTIA_MEDALLION build</code>
 with no deploy and no approval, so new bronze data reaches silver and gold with the code already released. A failed
 test fails the run and leaves gold as it was. Data Factory can start it at the end of its load instead of the schedule.
+<b>Why a third pipeline:</b> releases change code and need a PROD approval each time; refreshes change only data,
+run daily and must not wait for an approver or redeploy. Keeping them apart gives each pipeline one trigger and one purpose.
 The snippets above are outlines; the complete pipelines are in <code>pipelines/</code>. Snowflake recommends deploying dbt
 projects to production with the Snowflake CLI from a CI/CD pipeline ("Deploy dbt project objects", Snowflake documentation).</div>
 </div>
